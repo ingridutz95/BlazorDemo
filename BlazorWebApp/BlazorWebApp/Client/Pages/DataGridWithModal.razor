@@ -1,0 +1,157 @@
+﻿@typeparam TItem
+
+<table class="table is-fullwidth">
+    <thead>
+        <tr>
+            @if (Columns == null || Columns.Count <= 0)
+            {
+
+            }
+            else
+            {
+                foreach (var col in Columns)
+                {
+                    @if (col.Alignment != Alignment.NotSet)
+                    {
+                        <th align="@col.Alignment.ToString().ToLower()">
+                            @col.Caption
+                        </th>
+                    }
+                    else
+                    {
+                        <th>
+                            @col.Caption
+                        </th>
+                    }
+
+                }
+            }
+            <th> Actions</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @foreach (var item in DataItems.Skip(Paging.NumOfItemsToSkip(CurrentPageNumber))
+           .Take(Paging.NumItemsToTake(DataItems.Count)))
+        {
+            <tr>
+                @foreach (var col in Columns)
+                {
+                    @if (!string.IsNullOrEmpty(col.Format) && col.DataType != DataType.NotSet)
+                    {
+                        string value = string.Empty;
+                        switch (col.DataType)
+                        {
+                            case DataType.Date:
+                            case DataType.DateTime:
+                                value = DateTime.Parse(typeof(TItem).GetProperty(col.DataField).GetValue(item).ToString()).ToString(col.Format);
+                                break;
+                            case DataType.Boolean:
+                                value = bool.Parse(typeof(TItem).GetProperty(col.DataField).GetValue(item).ToString()).ToString();
+                                break;
+                            case DataType.Currency:
+                                value = Math.Round(double.Parse(typeof(TItem).GetProperty(col.DataField).GetValue(item).ToString()), 2).ToString("c");
+                                break;
+                            default:
+                                break;
+
+
+
+                        }
+                        @if (col.Alignment != Alignment.NotSet)
+                        {
+                            <td align="@col.Alignment.ToString().ToLower()"> @value </td>
+                        }
+                        else
+                        {
+                            <td>@value</td>
+                        }
+                    }
+                    else
+                    {
+                        @if (col.Alignment != Alignment.NotSet)
+                        {
+                            <td align="@col.Alignment.ToString().ToLower()">
+                                @typeof(TItem).GetProperty(col.DataField).GetValue(item)
+                            </td>
+                        }
+                        else
+                        {
+                            <td>
+                                @typeof(TItem).GetProperty(col.DataField).GetValue(item)
+                            </td>
+                        }
+                    }
+
+                }
+                <td>
+                    <button type="button" @onclick="() => OpenModal()">Click Modal</button>
+                </td>
+                @if (ModalOpen)
+                {
+                    <OpenWeatherModal Text="Modal opened" OnClose="@OnClose"></OpenWeatherModal>
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+<div class="level">
+    <div class="level-right">
+        <div class="level-item">
+            @if (Paging != null && Paging.Enabled)
+            {
+                @if (Paging.CustomPager)
+                {
+                    @CustomPager
+                }
+                else
+                {
+                    <button class="button" @onclick="GoToPrevPage">Previous</button>
+                    <span>Page @CurrentPageNumber of @Paging.MaxPageNo(DataItems.Count)</span>
+                    <button class="button" @onclick="GoToNextPage">Next</button>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int CurrentPageNumber { get; set; } = 1;
+
+    [Parameter]
+    public List<TItem> DataItems { get; set; }
+
+    [Parameter]
+    public List<ColumnDefinition> Columns { get; set; }
+
+    [Parameter]
+    public PagingConfig Paging { get; set; }
+
+    [Parameter]
+    public RenderFragment CustomPager { get; set; }
+
+    public void GoToPrevPage()
+    {
+        CurrentPageNumber = Paging.PrevPageNumber(CurrentPageNumber);
+    }
+
+    public void GoToNextPage()
+    {
+        CurrentPageNumber = Paging.NextPageNumber(CurrentPageNumber, DataItems.Count);
+    }
+
+    public bool ModalOpen { get; set; }
+    private OpenWeatherModal _upsertModal { get; set; }
+    private void OnClose(bool accepted)
+    {
+        ModalOpen = false;
+        StateHasChanged();
+    }
+
+    private void OpenModal()
+    {
+        ModalOpen = true;
+        StateHasChanged();
+    }
+}

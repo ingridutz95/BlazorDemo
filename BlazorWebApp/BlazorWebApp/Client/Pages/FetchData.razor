@@ -1,0 +1,30 @@
+﻿@page "/fetchdata"
+@using BlazorWebApp.Shared
+@inject HttpClient Http
+
+<h1>Weather forecast</h1>
+
+<p>This component demonstrates fetching data from the server.</p>
+
+@if (forecasts == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <DataGridWithModal TItem="WeatherForecast"
+                       DataItems="forecasts"
+                       Columns="columnDefinition"
+                       Paging="@(new PagingConfig
+                                 {
+                                     Enabled = true,
+                                     CustomPager = false,
+                                     PageSize = 4
+                                 })"></DataGridWithModal>
+}
+
+
+
+@code {
+  
+}

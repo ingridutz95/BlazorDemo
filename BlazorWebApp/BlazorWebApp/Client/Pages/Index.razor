@@ -1,0 +1,194 @@
+﻿@page "/"
+@inject HttpClient Http
+
+
+<h1>Hello, world!</h1>
+
+<EditForm Model="@Employee">
+    <label for="department" style="margin-left: 2.5em">Department: </label>
+    <InputText id="department" @bind-Value="@Employee.Department" />
+    <button type="button" class="btn badge-dark" style="margin-left: 2.5em" @onclick="GetEmployeeDepartments">Search</button>
+</EditForm>
+
+
+<br />
+
+<table class="table is-fullwidth">
+    <thead>
+        <tr>
+            @if (columnDefinition == null || columnDefinition.Count <= 0)
+            {
+
+            }
+            else
+            {
+                foreach (var col in columnDefinition)
+                {
+                    @if (col.Alignment != Alignment.NotSet)
+                    {
+                        <th align="@col.Alignment.ToString().ToLower()">
+                            @col.Caption
+                        </th>
+                    }
+                    else
+                    {
+                        <th>
+                            @col.Caption
+                        </th>
+                    }
+
+                }
+            }
+            <th> Actions</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @foreach (var item in listEmployees.Skip(Paging.NumOfItemsToSkip(CurrentPageNumber))
+      .Take(Paging.NumItemsToTake(listEmployees.Count)))
+        {
+            var employee = item;
+            //OpenModal(employee);
+            <tr>
+                @foreach (var col in columnDefinition)
+                {
+                    @if (!string.IsNullOrEmpty(col.Format) && col.DataType != DataType.NotSet)
+                    {
+                        string value = string.Empty;
+                        switch (col.DataType)
+                        {
+                            case DataType.Date:
+                            case DataType.DateTime:
+                                value = DateTime.Parse(typeof(EmployeeModel).GetProperty(col.DataField).GetValue(item).ToString()).ToString(col.Format);
+                                break;
+                            case DataType.Boolean:
+                                value = bool.Parse(typeof(EmployeeModel).GetProperty(col.DataField).GetValue(item).ToString()).ToString();
+                                break;
+                            case DataType.Currency:
+                                value = Math.Round(double.Parse(typeof(EmployeeModel).GetProperty(col.DataField).GetValue(item).ToString()), 2).ToString("c");
+                                break;
+                            default:
+                                break;
+
+
+
+                        }
+                        @if (col.Alignment != Alignment.NotSet)
+                        {
+                            <td align="@col.Alignment.ToString().ToLower()"> @value </td>
+                        }
+                        else
+                        {
+                            <td>@value</td>
+                        }
+                    }
+                    else
+                    {
+                        @if (col.Alignment != Alignment.NotSet)
+                        {
+                            <td align="@col.Alignment.ToString().ToLower()">
+                                @typeof(EmployeeModel).GetProperty(col.DataField).GetValue(item)
+                            </td>
+                        }
+                        else
+                        {
+                            <td>
+                                @typeof(EmployeeModel).GetProperty(col.DataField).GetValue(item)
+                            </td>
+                        }
+                    }
+
+                }
+                <td>
+                    <button type="button" @onclick="() => OpenModal(employee)">See compensation</button>
+                </td>
+
+            </tr>
+        }
+    </tbody>
+</table>
+@if (ModalOpen)
+{
+    <EmployeeModal Employee="@CurrentEmployee" OnClose="@OnClose"></EmployeeModal>
+}
+<div class="level">
+    <div class="level-right">
+        <div class="level-item">
+            @if (Paging != null && Paging.Enabled)
+            {
+                @if (Paging.CustomPager)
+                {
+                    @CustomPager
+                }
+                else
+                {
+                    <button class="button" @onclick="GoToPrevPage">Previous</button>
+                    <span>Page @CurrentPageNumber of @Paging.MaxPageNo(listEmployees.Count)</span>
+                    <button class="button" @onclick="GoToNextPage">Next</button>
+                }
+            }
+        </div>
+    </div>
+</div>
+@code {
+    [Parameter]
+    public int CurrentPageNumber { get; set; } = 1;
+
+    [Parameter]
+    public PagingConfig Paging { get; set; } = (new PagingConfig
+    {
+        Enabled = true,
+        CustomPager = false,
+        PageSize = 4
+    });
+
+    [Parameter]
+    public EmployeeModel CurrentEmployee { get; set; }
+
+    [Parameter]
+    public RenderFragment CustomPager { get; set; }
+
+    public EmployeeModel Employee = new();
+    public List<EmployeeModel> Employees { get; set; }
+
+    public void GoToPrevPage()
+    {
+        CurrentPageNumber = Paging.PrevPageNumber(CurrentPageNumber);
+    }
+
+    public void GoToNextPage()
+    {
+        CurrentPageNumber = Paging.NextPageNumber(CurrentPageNumber, listEmployees.Count);
+    }
+
+    public bool ModalOpen { get; set; }
+    private OpenWeatherModal _upsertModal { get; set; }
+    private void OnClose(bool accepted)
+    {
+        ModalOpen = false;
+        StateHasChanged();
+    }
+
+    private void OpenModal(EmployeeModel employee)
+    {
+        ModalOpen = true;
+        Console.WriteLine("Employee department: " + employee.Department);
+        CurrentEmployee = employee;
+        StateHasChanged();
+    }
+
+    public async void GetEmployeeDepartments()
+    {
+        try
+        {
+            Employees = new List<EmployeeModel>();
+            Console.WriteLine("employee department " + Employee.Department);
+            var emp = await Http.GetFromJsonAsync<IEnumerable<EmployeeModel>>($"WeatherForecast/employees/{Employee.Department}");
+            listEmployees = emp.ToList();
+            StateHasChanged();
+        }
+        catch(Exception)
+        { 
+        }
+    }
+}
